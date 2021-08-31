@@ -47,5 +47,10 @@ class DbControl:
         cursor.execute('INSERT INTO words(word, count) VALUES(?,?) ON CONFLICT(word) DO UPDATE SET count=?',
                        (word, qty, qty,))
 
+    def get_top_words(self, top: int):
+        cursor = self.sqlite_con.cursor()
+        cursor.execute('SELECT word, count FROM words ORDER BY count DESC limit ?', (top,))
+        return list(cursor.fetchall())
+
     def get_cursor(self):
         return self.sqlite_con.cursor()
