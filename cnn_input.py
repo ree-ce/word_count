@@ -3,6 +3,9 @@ import re
 import sqlite3
 import requests
 from bs4 import BeautifulSoup
+
+from db_control import DbControl
+
 cnn_edition_host = 'https://edition.cnn.com'
 
 # CNN has several layouts that needs different url handling
@@ -14,61 +17,13 @@ section_4 = ['sport', ]
 section_5 = ['politics', ]
 
 word_set = dict()
-sqlite_con = None
-
-
-def open_database(table_path):
-    global sqlite_con
-    try:
-        sqlite_con = sqlite3.connect(f'file:{table_path}?mode=rw', uri=True)
-        return True
-    except sqlite3.OperationalError:
-        sqlite_con = sqlite3.connect(table_path)
-        cursor = sqlite_con.cursor()
-        cursor.execute(
-            '''CREATE TABLE words (id PRIMARY KEY AUTOINCREMENT, word  STRING  NOT NULL UNIQUE, count INTEGER NOT NULL DEFAULT (0) ); ''')
-        cursor.execute('''CREATE UNIQUE INDEX idx_word ON words (word);''')
-        cursor.execute('''CREATE TABLE sources (url STRING NOT NULL UNIQUE);''')
-        cursor.execute('''CREATE UNIQUE INDEX idx_url ON sources (url);''')
-        return True
-    except Exception as e:
-        print('!!! Open database error', e)
-        return False
-
-
-def is_url_captured(url: str):
-    global sqlite_con
-    cursor = sqlite_con.cursor()
-    cursor.execute('SELECT * FROM sources WHERE url=?', (url,))
-    return len(cursor.fetchall()) > 0
-
-
-def upsert_url(url: str):
-    global sqlite_con
-    cursor = sqlite_con.cursor()
-    cursor.execute('INSERT INTO sources(url) VALUES(?) ON CONFLICT(url) DO NOTHING', (url,))
-
-
-def get_all_words():
-    global sqlite_con
-    cursor = sqlite_con.cursor()
-    cursor.execute('SELECT word, count FROM words')
-    return dict(cursor.fetchall())
-
-
-def upsert_words(word: str, qty: int):
-    global sqlite_con
-    cursor = sqlite_con.cursor()
-    cursor.execute('INSERT INTO words(word, count) VALUES(?,?) ON CONFLICT(word) DO UPDATE SET count=?',
-                   (word, qty, qty,))
-
+db_control = DbControl()
 
 # ------- open and check database -------
-if not open_database('words.db'):
+if not db_control.open_database('words.db'):
     exit()
 
-word_set = get_all_words()
-
+word_set = db_control.get_all_words()
 
 def get_links_section_1(section):
     req = requests.get(f'{cnn_edition_host}/{section}')
@@ -135,7 +90,7 @@ def update_words_with_link(links):
     for link in links:
         full_url = link
 
-        if is_url_captured(full_url):
+        if db_control.is_url_captured(full_url):
             continue
 
         req = requests.get(full_url)
@@ -164,9 +119,9 @@ def update_words_with_link(links):
         # ------ Update result to database ------
         for key, value in word_set.items():
             if len(key) > 0:
-                upsert_words(key, value)
+                db_control.upsert_words(key, value)
 
-        upsert_url(full_url)
+        db_control.upsert_url(full_url, 'cnn')
         sqlite_con.commit()
 
 
@@ -182,9 +137,8 @@ for section in section_5:
 for section in section_4:
     update_words_with_link(get_links_section_4(section))
 
-
 for section in section_3:
     update_words_with_link(get_links_section_3())
 
-if sqlite_con is not None:
-    sqlite_con.close()
+if db_control is not None:
+    db_control.close_database()
