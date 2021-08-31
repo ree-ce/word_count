@@ -25,6 +25,9 @@ class DbControl:
     def close_database(self):
         self.sqlite_con.close()
 
+    def commit(self):
+        self.sqlite_con.commit()
+
     def is_url_captured(self, url: str):
         cursor = self.sqlite_con.cursor()
         cursor.execute('SELECT * FROM sources WHERE url=?', (url,))

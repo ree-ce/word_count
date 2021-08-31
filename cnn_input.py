@@ -122,7 +122,7 @@ def update_words_with_link(links):
                 db_control.upsert_words(key, value)
 
         db_control.upsert_url(full_url, 'cnn')
-        sqlite_con.commit()
+        db_control.commit()
 
 
 for section in section_2:
