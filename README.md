@@ -1,7 +1,7 @@
 # WORD COUNT
 This repository grab words from news websites. The included urls can be checked from the word.db.
 However, now only CNN is supported
-Last update: 2022-11-14 00:00:35
+Last update: 2022-11-15 00:00:35
 word|count
 ---|---
 the|741265
